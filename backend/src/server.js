@@ -53,13 +53,18 @@ wss.on("connection", (ws) => {
         if (playerId && roomCode) {
             const room = roomManager.getRoom(roomCode);
             if (room) {
+                const wasAdmin = room.adminId === playerId;
                 room.removePlayer(playerId);
                 playerConnections.delete(playerId);
                 playerRooms.delete(playerId);
                 roomConnections.get(roomCode).delete(playerId);
 
-                // Notify other players in room
-                if (roomConnections.get(roomCode).size === 0) {
+                if (wasAdmin) {
+                    // Admin left — destroy room and kick everyone
+                    broadcastToRoom(roomCode, { type: "ROOM_DESTROYED", payload: {} });
+                    roomManager.deleteRoom(roomCode);
+                    roomConnections.delete(roomCode);
+                } else if (roomConnections.get(roomCode).size === 0) {
                     roomManager.deleteRoom(roomCode);
                     roomConnections.delete(roomCode);
                 } else {
@@ -80,7 +85,7 @@ wss.on("connection", (ws) => {
 function handleMessage(ws, data, playerId, roomCode, setPlayerId, setRoomCode) {
     const { type, roomCode: dataRoomCode, payload } = data;
     const actualRoomCode = roomCode || dataRoomCode;
-    console.log(`Received message type: ${type} in room: ${actualRoomCode}`);
+    console.log(`Received message type: ${type} in room: ${dataRoomCode || roomCode}`);
 
     switch (type) {
         case "CREATE_ROOM":
@@ -101,6 +106,9 @@ function handleMessage(ws, data, playerId, roomCode, setPlayerId, setRoomCode) {
         case "RULE_OUT_NAME":
             handleRuleOutName(actualRoomCode, payload, playerId);
             break;
+        case "DESTROY_ROOM":
+            handleDestroyRoom(actualRoomCode);
+            break;
         case "END_GAME":
             handleEndGame(actualRoomCode);
             break;
@@ -119,34 +127,34 @@ function handleMessage(ws, data, playerId, roomCode, setPlayerId, setRoomCode) {
 function handleCreateRoom(ws, roomCode, payload, setPlayerId, setRoomCode) {
     const { adminId, adminName } = payload;
 
-    // Create room
-    const room = roomManager.createRoom(roomCode, adminId);
-    if (!room) {
-        ws.send(JSON.stringify({ type: "ERROR", payload: { message: "Room already exists" } }));
-        return;
-    }
+    // Server generates the room code to avoid stale client-side codes
+    let code;
+    do {
+        code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    } while (roomManager.roomExists(code));
 
-    // Add admin as first player
+    const room = roomManager.createRoom(code, adminId);
+
     room.addPlayer(adminId, adminName);
 
     setPlayerId(adminId);
-    setRoomCode(roomCode);
+    setRoomCode(code);
 
-    // Confirm room creation
     ws.send(
         JSON.stringify({
             type: "ROOM_CREATED",
-            payload: { roomCode, players: room.getGameState().players },
+            payload: { roomCode: code, players: room.getGameState().players },
         }),
     );
 
-    console.log(`Room ${roomCode} created by ${adminName}`);
+    console.log(`Room ${code} created by ${adminName}`);
 }
 
 function handleJoinRoom(ws, roomCode, payload, setPlayerId, setRoomCode) {
-    const { playerId, playerName } = payload;
+    const { targetRoomCode, playerId, playerName } = payload;
+    const code = targetRoomCode || roomCode;
 
-    const room = roomManager.getRoom(roomCode);
+    const room = roomManager.getRoom(code);
     if (!room) {
         ws.send(JSON.stringify({ type: "ERROR", payload: { message: "Room not found" } }));
         return;
@@ -156,23 +164,23 @@ function handleJoinRoom(ws, roomCode, payload, setPlayerId, setRoomCode) {
     room.addPlayer(playerId, playerName);
 
     setPlayerId(playerId);
-    setRoomCode(roomCode);
+    setRoomCode(code);
 
     // Confirm join
     ws.send(
         JSON.stringify({
             type: "ROOM_JOINED",
-            payload: { roomCode, players: room.getGameState().players },
+            payload: { roomCode: code, players: room.getGameState().players },
         }),
     );
 
     // Broadcast updated player list to all players in room
-    broadcastToRoom(roomCode, {
+    broadcastToRoom(code, {
         type: "PLAYERS_UPDATED",
         payload: { players: room.getGameState().players },
     });
 
-    console.log(`${playerName} joined room ${roomCode}`);
+    console.log(`${playerName} joined room ${code}`);
 }
 
 function handleAddName(roomCode, payload) {
@@ -297,6 +305,12 @@ function handleRestartGame(roomCode) {
             }));
         }
     });
+}
+
+function handleDestroyRoom(roomCode) {
+    broadcastToRoom(roomCode, { type: "ROOM_DESTROYED", payload: {} });
+    roomManager.deleteRoom(roomCode);
+    roomConnections.delete(roomCode);
 }
 
 function handleEndGame(roomCode) {

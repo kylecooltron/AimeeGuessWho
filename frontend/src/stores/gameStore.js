@@ -18,6 +18,7 @@ export const useGameStore = defineStore("game", () => {
     const messages = ref([]);
     const toastMessages = ref([]);
     const guessingPlayer = ref(null);
+    const joinError = ref(null);
     const ws = ref(null);
     let toastIdCounter = 0;
 
@@ -52,18 +53,29 @@ export const useGameStore = defineStore("game", () => {
 
         switch (type) {
             case "ROOM_CREATED":
-                console.log("Room created successfully");
+                roomCode.value = payload.roomCode;
                 players.value = payload.players || [];
+                router.push("/lobby");
                 break;
 
             case "ROOM_JOINED":
-                console.log("Joined room successfully");
+                joinError.value = null;
+                roomCode.value = payload.roomCode;
                 players.value = payload.players || [];
+                router.push("/lobby");
                 break;
 
             case "PLAYERS_UPDATED":
-                console.log("Players updated:", payload.players);
                 players.value = payload.players || [];
+                break;
+
+            case "PLAYER_LEFT":
+                players.value = payload.players || [];
+                break;
+
+            case "ROOM_DESTROYED":
+                resetGame();
+                router.push("/");
                 break;
 
             case "NAMES_UPDATED":
@@ -118,7 +130,7 @@ export const useGameStore = defineStore("game", () => {
                 break;
 
             case "ERROR":
-                console.error("Server error:", payload.message);
+                joinError.value = payload.message;
                 break;
 
             default:
@@ -127,17 +139,19 @@ export const useGameStore = defineStore("game", () => {
     }
 
     function sendMessage(type, payload) {
+        if (!ws.value) return;
+
+        // Snapshot roomCode now so a reconnect can't change what gets sent
+        const capturedRoomCode = roomCode.value;
         const send = () => {
             ws.value.send(
                 JSON.stringify({
                     type,
-                    roomCode: roomCode.value,
+                    roomCode: capturedRoomCode,
                     payload,
                 }),
             );
         };
-
-        if (!ws.value) return;
 
         if (ws.value.readyState === WebSocket.OPEN) {
             send();
@@ -147,35 +161,30 @@ export const useGameStore = defineStore("game", () => {
     }
 
     function joinRoom(code, name) {
-        roomCode.value = code;
+        joinError.value = null;
         playerName.value = name;
         playerId.value = Math.random().toString(36).substring(7);
         isAdmin.value = false;
-        players.value = [{ id: playerId.value, name, isAdmin: false }];
 
+        // Don't set roomCode yet — send code in payload, set from server response
         sendMessage("JOIN_ROOM", {
+            targetRoomCode: code,
             playerId: playerId.value,
             playerName: name,
         });
     }
 
-    function hostRoom(code, name) {
-        roomCode.value = code;
+    function hostRoom(name) {
         playerName.value = name;
         playerId.value = Math.random().toString(36).substring(7);
         isAdmin.value = true;
-        players.value = [{ id: playerId.value, name, isAdmin: true }];
         gameState.value = "names_entry";
 
+        // Don't set roomCode here — wait for server's ROOM_CREATED response
         sendMessage("CREATE_ROOM", {
-            roomCode: code,
             adminId: playerId.value,
             adminName: name,
         });
-    }
-
-    function generateRoomCode() {
-        return Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
     function addName(name) {
@@ -191,6 +200,10 @@ export const useGameStore = defineStore("game", () => {
     function startGame() {
         gameState.value = "in_progress";
         sendMessage("START_GAME", { names: names.value });
+    }
+
+    function destroyRoom() {
+        sendMessage("DESTROY_ROOM", {});
     }
 
     function restartGame() {
@@ -218,6 +231,15 @@ export const useGameStore = defineStore("game", () => {
         sendMessage("RULE_OUT_NAME", {
             nameIndex,
         });
+    }
+
+    function leaveRoom() {
+        const old = ws.value;
+        ws.value = null;
+        resetGame();
+        if (old) old.close();
+        // Reconnect so the user can host/join again without refreshing
+        connectWebSocket();
     }
 
     function resetGame() {
@@ -274,17 +296,19 @@ export const useGameStore = defineStore("game", () => {
         messages,
         toastMessages,
         guessingPlayer,
+        joinError,
 
         // Methods
         connectWebSocket,
         sendMessage,
         joinRoom,
         hostRoom,
-        generateRoomCode,
         addName,
         removeName,
         startGame,
         markNameAsRuledOut,
+        leaveRoom,
+        destroyRoom,
         restartGame,
         endGame,
         makeGuess,

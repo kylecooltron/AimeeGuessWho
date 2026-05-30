@@ -43,6 +43,9 @@
                             required
                         />
                     </div>
+                    <div v-if="gameStore.joinError" class="error-msg">
+                        {{ gameStore.joinError }}
+                    </div>
                     <button type="submit" class="btn btn-primary">Join</button>
                 </form>
             </div>
@@ -72,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
 
@@ -93,19 +96,27 @@ const hostForm = ref({
 
 const handleJoin = () => {
     gameStore.joinRoom(joinForm.value.code.toUpperCase(), joinForm.value.name);
-    showJoinForm.value = false;
-    router.push("/lobby");
+    // Navigation happens in the store when ROOM_JOINED is confirmed
 };
 
 const handleHost = () => {
-    const roomCode = gameStore.generateRoomCode();
-    gameStore.hostRoom(roomCode, hostForm.value.name);
+    gameStore.hostRoom(hostForm.value.name);
     showHostForm.value = false;
-    router.push("/lobby");
+    // Navigation happens in the store when ROOM_CREATED is confirmed
 };
 </script>
 
 <style scoped>
+.error-msg {
+    background: #fdecea;
+    color: #c0392b;
+    border: 1px solid #e74c3c;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
 .start-container {
     display: flex;
     justify-content: center;

@@ -99,8 +99,16 @@ const startGame = () => {
 };
 
 const goBack = () => {
-    gameStore.resetGame();
-    router.push("/");
+    if (gameStore.isAdmin) {
+        if (confirm("Leaving will close the room and kick all players. Are you sure?")) {
+            gameStore.destroyRoom();
+            gameStore.resetGame();
+            router.push("/");
+        }
+    } else {
+        gameStore.leaveRoom();
+        router.push("/");
+    }
 };
 </script>
 

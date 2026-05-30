@@ -18,7 +18,7 @@ const router = useRouter();
 gameStore.connectWebSocket();
 
 function goHome() {
-    gameStore.resetGame();
+    gameStore.leaveRoom();
     router.push("/");
 }
 </script>

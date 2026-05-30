@@ -52,8 +52,11 @@
                         :class="{ eliminated: isNameRuledOut(index) }"
                         @click="eliminateName(index)"
                     >
+                        <div class="card-image-wrap">
+                            <img :src="imgSrc(name)" :alt="name" class="card-img" @error="imgError(name)" />
+                        </div>
                         <div class="name-text">{{ name }}</div>
-                        <div v-if="isNameRuledOut(index)" class="eliminated-overlay">✓</div>
+                        <div v-if="isNameRuledOut(index)" class="eliminated-overlay">✕</div>
                     </div>
                 </div>
 
@@ -65,9 +68,26 @@
 </template>
 
 <script setup>
+import { ref } from "vue";
 import { useGameStore } from "../stores/gameStore";
+import { localUrlsForName, catFallback } from "../utils/nameImages";
 
 const gameStore = useGameStore();
+
+// Tracks how many local URL attempts have failed per name
+const imgAttempts = ref({});
+
+function imgSrc(name) {
+    const attempts = imgAttempts.value[name] || 0;
+    const locals = localUrlsForName(name);
+    if (attempts < locals.length) return locals[attempts];
+    return catFallback(name);
+}
+
+function imgError(name) {
+    const attempts = imgAttempts.value[name] || 0;
+    imgAttempts.value[name] = attempts + 1;
+}
 
 const isNameRuledOut = (nameIndex) => {
     return gameStore.ruledOut.has(gameStore.playerId) && gameStore.ruledOut.get(gameStore.playerId).has(nameIndex);
@@ -278,48 +298,67 @@ const eliminateName = (nameIndex) => {
 }
 
 .name-card {
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 8px;
+    background: white;
+    border-radius: 10px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-weight: 600;
     text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 80px;
     position: relative;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .name-card:hover:not(.eliminated) {
     transform: translateY(-4px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
-.name-card.eliminated {
-    background: #ddd;
-    color: #999;
-    cursor: not-allowed;
-    opacity: 0.6;
+.card-image-wrap {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: #eee;
+}
+
+.card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: filter 0.3s ease;
+}
+
+.name-card.eliminated .card-img {
+    filter: grayscale(100%) opacity(0.4);
+}
+
+.name-text {
+    padding: 8px 6px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    word-wrap: break-word;
+    transition: all 0.3s ease;
 }
 
 .name-card.eliminated .name-text {
     text-decoration: line-through;
-}
-
-.name-text {
-    transition: all 0.3s ease;
-    word-wrap: break-word;
-    font-size: 0.95rem;
+    background: #bbb;
 }
 
 .eliminated-overlay {
     position: absolute;
-    font-size: 2rem;
-    color: #666;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+    font-size: 3rem;
+    font-weight: 900;
+    color: rgba(200, 0, 0, 0.75);
+    pointer-events: none;
 }
 
 .guess-btn {
