@@ -1,0 +1,11 @@
+All done. Here's what to fill in before pushing:
+
+Two placeholders to replace with real values:
+
+frontend/.env.production — replace your-render-app with your actual Render service name once it's deployed
+.github/workflows/deploy.yml — same, replace your-render-app with the real URL
+Deploy steps:
+
+Push to main — the Action will run and create a gh-pages branch automatically
+Go to your repo → Settings → Pages → set source to the gh-pages branch
+In Render: New Web Service → connect your repo → it'll pick up render.yaml → set FRONTEND_ORIGIN to https://your-github-username.github.io in the Render dashboard env vars UI

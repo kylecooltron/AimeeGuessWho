@@ -26,8 +26,9 @@
     </Transition>
 
     <div class="game-container">
-        <!-- End Game (host only) -->
+        <!-- Host controls -->
         <div v-if="gameStore.isAdmin" class="end-game-bar">
+            <button class="restart-btn" @click="gameStore.restartGame()">Restart Round</button>
             <button class="end-game-btn" @click="gameStore.endGame()">End Game</button>
         </div>
 
@@ -188,6 +189,7 @@ const eliminateName = (nameIndex) => {
     padding: 10px 20px 0;
 }
 
+.restart-btn,
 .end-game-btn {
     background: transparent;
     color: rgba(255, 255, 255, 0.7);
@@ -197,6 +199,12 @@ const eliminateName = (nameIndex) => {
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.2s;
+}
+
+.restart-btn:hover {
+    background: rgba(102, 126, 234, 0.8);
+    color: white;
+    border-color: transparent;
 }
 
 .end-game-btn:hover {

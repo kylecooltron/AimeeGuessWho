@@ -23,7 +23,7 @@ export const useGameStore = defineStore("game", () => {
 
     // Connect to WebSocket
     function connectWebSocket() {
-        ws.value = new WebSocket(`ws://localhost:8080`);
+        ws.value = new WebSocket(import.meta.env.VITE_WS_URL || "ws://localhost:3001");
 
         ws.value.onopen = () => {
             console.log("Connected to WebSocket");
@@ -98,6 +98,18 @@ export const useGameStore = defineStore("game", () => {
 
             case "GUESS_DISMISSED":
                 guessingPlayer.value = null;
+                break;
+
+            case "GAME_RESTARTED":
+                ruledOut.value = new Map();
+                toastMessages.value = [];
+                guessingPlayer.value = null;
+                selectedPlayerName.value = payload.selectedPlayerId;
+                isAssigned.value = payload.isAssigned;
+                assignedName.value = payload.assignedName;
+                names.value = payload.names || [];
+                players.value = payload.players || [];
+                addToast("New round started!");
                 break;
 
             case "GAME_ENDED":
@@ -179,6 +191,10 @@ export const useGameStore = defineStore("game", () => {
     function startGame() {
         gameState.value = "in_progress";
         sendMessage("START_GAME", { names: names.value });
+    }
+
+    function restartGame() {
+        sendMessage("RESTART_GAME", {});
     }
 
     function endGame() {
@@ -269,6 +285,7 @@ export const useGameStore = defineStore("game", () => {
         removeName,
         startGame,
         markNameAsRuledOut,
+        restartGame,
         endGame,
         makeGuess,
         closeGuessModal,

@@ -5,7 +5,8 @@
     "main": "src/server.js",
     "scripts": {
         "start": "node src/server.js",
-        "dev": "nodemon src/server.js"
+        "dev": "nodemon src/server.js",
+        "kill": "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :3001') do taskkill /PID %a /F"
     },
     "dependencies": {
         "express": "^4.18.2",

@@ -11,7 +11,9 @@ const PORT = process.env.PORT || 3001;
 const WS_PORT = process.env.WS_PORT || 8080;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
+}));
 app.use(express.json());
 
 // Track WebSocket connections per room and player
@@ -19,8 +21,9 @@ const playerConnections = new Map(); // playerId -> ws connection
 const roomConnections = new Map(); // roomCode -> Set of playerId's
 const playerRooms = new Map(); // playerId -> roomCode
 
-// WebSocket server
-const wss = new WebSocket.Server({ port: WS_PORT });
+// WebSocket server — attached to HTTP server so both share one port on Render
+const server = require("http").createServer(app);
+const wss = new WebSocket.Server({ server });
 
 wss.on("connection", (ws) => {
     console.log("New WebSocket connection");
@@ -100,6 +103,9 @@ function handleMessage(ws, data, playerId, roomCode, setPlayerId, setRoomCode) {
             break;
         case "END_GAME":
             handleEndGame(actualRoomCode);
+            break;
+        case "RESTART_GAME":
+            handleRestartGame(actualRoomCode);
             break;
         case "MAKE_GUESS":
             handleMakeGuess(actualRoomCode, playerId);
@@ -263,6 +269,36 @@ function handleRuleOutName(roomCode, payload, playerId) {
     });
 }
 
+function handleRestartGame(roomCode) {
+    const room = roomManager.getRoom(roomCode);
+    if (!room) return;
+
+    room.ruledOut = new Map();
+
+    const nameIndex = Math.floor(Math.random() * room.names.length);
+    room.selectedName = room.names[nameIndex];
+
+    const playerIds = Array.from(room.players.keys());
+    const selectedPlayerId = playerIds[Math.floor(Math.random() * playerIds.length)];
+    room.selectedPlayerName = selectedPlayerId;
+
+    roomConnections.get(roomCode).forEach((pid) => {
+        const connection = playerConnections.get(pid);
+        if (connection && connection.readyState === WebSocket.OPEN) {
+            connection.send(JSON.stringify({
+                type: "GAME_RESTARTED",
+                payload: {
+                    selectedPlayerId,
+                    assignedName: pid === selectedPlayerId ? room.selectedName : null,
+                    names: room.names,
+                    players: room.getGameState().players,
+                    isAssigned: pid === selectedPlayerId,
+                },
+            }));
+        }
+    });
+}
+
 function handleEndGame(roomCode) {
     broadcastToRoom(roomCode, { type: "GAME_ENDED", payload: {} });
     roomManager.deleteRoom(roomCode);
@@ -301,8 +337,6 @@ app.get("/health", (req, res) => {
     res.json({ status: "ok" });
 });
 
-// Start HTTP server (for future API endpoints)
-app.listen(PORT, () => {
-    console.log(`HTTP server running on port ${PORT}`);
-    console.log(`WebSocket server running on port ${WS_PORT}`);
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT} (HTTP + WebSocket)`);
 });

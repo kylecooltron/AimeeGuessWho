@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: aimee-guess-who-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_ORIGIN
+        value: https://your-github-username.github.io
