@@ -98,6 +98,15 @@ function handleMessage(ws, data, playerId, roomCode, setPlayerId, setRoomCode) {
         case "RULE_OUT_NAME":
             handleRuleOutName(actualRoomCode, payload, playerId);
             break;
+        case "END_GAME":
+            handleEndGame(actualRoomCode);
+            break;
+        case "MAKE_GUESS":
+            handleMakeGuess(actualRoomCode, playerId);
+            break;
+        case "DISMISS_GUESS":
+            handleDismissGuess(actualRoomCode);
+            break;
     }
 }
 
@@ -252,6 +261,27 @@ function handleRuleOutName(roomCode, payload, playerId) {
         type: "NAME_RULED_OUT",
         payload: { playerId, nameIndex },
     });
+}
+
+function handleEndGame(roomCode) {
+    broadcastToRoom(roomCode, { type: "GAME_ENDED", payload: {} });
+    roomManager.deleteRoom(roomCode);
+    roomConnections.delete(roomCode);
+}
+
+function handleMakeGuess(roomCode, playerId) {
+    const room = roomManager.getRoom(roomCode);
+    if (!room) return;
+    const player = room.players.get(playerId);
+    if (!player) return;
+    broadcastToRoom(roomCode, {
+        type: "PLAYER_GUESSING",
+        payload: { playerId, playerName: player.name },
+    });
+}
+
+function handleDismissGuess(roomCode) {
+    broadcastToRoom(roomCode, { type: "GUESS_DISMISSED", payload: {} });
 }
 
 function broadcastToRoom(roomCode, message) {

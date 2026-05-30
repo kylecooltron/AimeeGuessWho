@@ -1,16 +1,34 @@
 <template>
+    <!-- Floating Toast Feed -->
+    <div class="toast-feed">
+        <TransitionGroup name="toast" tag="div" class="toast-list">
+            <div v-for="toast in gameStore.toastMessages" :key="toast.id" class="toast-item">
+                {{ toast.text }}
+            </div>
+        </TransitionGroup>
+    </div>
+
+    <!-- Guess Modal -->
+    <Transition name="modal">
+        <div v-if="gameStore.guessingPlayer" class="modal-overlay">
+            <div class="guess-modal">
+                <div class="guess-icon">🔔</div>
+                <h2>{{ gameStore.guessingPlayer.name }} is making a guess!</h2>
+                <button
+                    v-if="gameStore.guessingPlayer.id === gameStore.playerId"
+                    @click="gameStore.closeGuessModal()"
+                    class="btn-dismiss"
+                >
+                    Dismiss
+                </button>
+            </div>
+        </div>
+    </Transition>
+
     <div class="game-container">
-        <!-- Message Feed -->
-        <div class="message-feed">
-            <div class="messages-header">
-                <h3>Game Feed</h3>
-            </div>
-            <div class="messages-list">
-                <div v-for="(msg, index) in gameStore.messages" :key="index" class="message">
-                    <span class="timestamp">{{ msg.timestamp }}</span>
-                    <span class="text">{{ msg.text }}</span>
-                </div>
-            </div>
+        <!-- End Game (host only) -->
+        <div v-if="gameStore.isAdmin" class="end-game-bar">
+            <button class="end-game-btn" @click="gameStore.endGame()">End Game</button>
         </div>
 
         <!-- Game Board -->
@@ -37,29 +55,15 @@
                         <div v-if="isNameRuledOut(index)" class="eliminated-overlay">✓</div>
                     </div>
                 </div>
+
+                <button class="guess-btn" @click="gameStore.makeGuess()">GUESS</button>
             </div>
         </div>
 
-        <!-- Players List Sidebar -->
-        <div class="sidebar">
-            <h3>Players</h3>
-            <div class="players-list">
-                <div
-                    v-for="player in gameStore.players"
-                    :key="player.id"
-                    class="player-item"
-                    :class="{ current: player.id === gameStore.playerId }"
-                >
-                    <span class="name">{{ player.name }}</span>
-                    <span v-if="player.id === gameStore.selectedPlayerName" class="badge">🎯</span>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 
 <script setup>
-import { computed } from "vue";
 import { useGameStore } from "../stores/gameStore";
 
 const gameStore = useGameStore();
@@ -76,62 +80,135 @@ const eliminateName = (nameIndex) => {
 </script>
 
 <style scoped>
+/* Toast Feed */
+.toast-feed {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    width: 340px;
+    pointer-events: none;
+}
+
+.toast-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast-item {
+    background: rgba(30, 30, 40, 0.92);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border-left: 3px solid #667eea;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+    transition: all 0.35s ease;
+}
+.toast-enter-from {
+    opacity: 0;
+    transform: translateY(-16px);
+}
+.toast-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+.toast-move {
+    transition: transform 0.35s ease;
+}
+
+/* Guess Modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.guess-modal {
+    background: white;
+    border-radius: 16px;
+    padding: 50px 60px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    max-width: 420px;
+    width: 90%;
+}
+
+.guess-icon {
+    font-size: 3.5rem;
+    margin-bottom: 16px;
+}
+
+.guess-modal h2 {
+    color: #333;
+    font-size: 1.5rem;
+    margin: 0 0 30px 0;
+    line-height: 1.4;
+}
+
+.btn-dismiss {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 32px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-dismiss:hover {
+    background: #c0392b;
+}
+
+.modal-enter-active,
+.modal-leave-active {
+    transition: opacity 0.25s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+    opacity: 0;
+}
+
+/* End Game Bar */
+.end-game-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 20px 0;
+}
+
+.end-game-btn {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.end-game-btn:hover {
+    background: rgba(231, 76, 60, 0.8);
+    color: white;
+    border-color: transparent;
+}
+
+/* Game Layout */
 .game-container {
-    display: grid;
-    grid-template-columns: 1fr 3fr 250px;
-    gap: 20px;
     padding: 20px;
     height: calc(100vh - 100px);
-    background: #f5f5f5;
-}
-
-/* Message Feed */
-.message-feed {
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    max-height: 100%;
-    overflow: hidden;
-    grid-column: 1;
-    grid-row: 1 / 3;
-}
-
-.messages-header h3 {
-    margin: 0 0 15px 0;
-    color: #333;
-    font-size: 1.1rem;
-}
-
-.messages-list {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.message {
-    padding: 10px;
-    background: #f9f9f9;
-    border-left: 3px solid #667eea;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.timestamp {
-    font-size: 0.8rem;
-    color: #999;
-}
-
-.text {
-    color: #333;
-    line-height: 1.4;
 }
 
 /* Game Board */
@@ -142,10 +219,8 @@ const eliminateName = (nameIndex) => {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    grid-column: 2;
-    grid-row: 1;
+    overflow-y: auto;
 }
 
 .game-board h2 {
@@ -158,6 +233,7 @@ const eliminateName = (nameIndex) => {
 .assigned-section {
     text-align: center;
     width: 100%;
+    margin: auto 0;
 }
 
 .assigned-name-display {
@@ -168,7 +244,6 @@ const eliminateName = (nameIndex) => {
     background: linear-gradient(135deg, #667eea20, #764ba220);
     border-radius: 12px;
     margin: 20px 0;
-    font-family: "Arial", sans-serif;
     letter-spacing: 2px;
 }
 
@@ -181,13 +256,17 @@ const eliminateName = (nameIndex) => {
 /* Names Section */
 .names-section {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
 }
 
 .names-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 15px;
-    margin-top: 20px;
+    width: 100%;
 }
 
 .name-card {
@@ -235,76 +314,28 @@ const eliminateName = (nameIndex) => {
     color: #666;
 }
 
-/* Sidebar */
-.sidebar {
-    background: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    grid-column: 3;
-    grid-row: 1 / 3;
-    display: flex;
-    flex-direction: column;
-}
-
-.sidebar h3 {
-    margin: 0 0 15px 0;
-    color: #333;
-    font-size: 1.1rem;
-}
-
-.players-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.player-item {
-    padding: 12px;
-    background: #f5f5f5;
-    border-radius: 6px;
-    border-left: 3px solid transparent;
+.guess-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 18px 60px;
+    font-size: 1.4rem;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 2px;
+    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.45);
     transition: all 0.2s ease;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
-.player-item.current {
-    background: #e8e4f3;
-    border-left-color: #667eea;
-    font-weight: 600;
+.guess-btn:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(231, 76, 60, 0.6);
 }
 
-.player-item .name {
-    color: #333;
-    flex: 1;
+.guess-btn:active {
+    transform: translateY(0);
 }
 
-.badge {
-    font-size: 1.2rem;
-    margin-left: 8px;
-}
-
-@media (max-width: 1200px) {
-    .game-container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
-    }
-
-    .message-feed {
-        grid-column: 1;
-        grid-row: 1;
-    }
-
-    .game-board {
-        grid-column: 1;
-        grid-row: 2;
-    }
-
-    .sidebar {
-        grid-column: 1;
-        grid-row: 3;
-    }
-}
 </style>

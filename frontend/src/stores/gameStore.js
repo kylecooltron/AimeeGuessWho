@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import router from "../router";
 
 export const useGameStore = defineStore("game", () => {
     const roomCode = ref(null);
@@ -15,7 +16,10 @@ export const useGameStore = defineStore("game", () => {
     const isAssigned = ref(false);
     const ruledOut = ref(new Map());
     const messages = ref([]);
+    const toastMessages = ref([]);
+    const guessingPlayer = ref(null);
     const ws = ref(null);
+    let toastIdCounter = 0;
 
     // Connect to WebSocket
     function connectWebSocket() {
@@ -80,12 +84,25 @@ export const useGameStore = defineStore("game", () => {
                 break;
 
             case "NAME_RULED_OUT":
-                console.log("Name ruled out by", payload.playerName);
                 if (!ruledOut.value.has(payload.playerId)) {
                     ruledOut.value.set(payload.playerId, new Set());
                 }
                 ruledOut.value.get(payload.playerId).add(payload.nameIndex);
-                addMessage(`${payload.playerName} eliminated someone.`);
+                const ruledOutPlayer = players.value.find(p => p.id === payload.playerId);
+                addToast(`${ruledOutPlayer ? ruledOutPlayer.name : "Someone"} eliminated a name.`);
+                break;
+
+            case "PLAYER_GUESSING":
+                guessingPlayer.value = { id: payload.playerId, name: payload.playerName };
+                break;
+
+            case "GUESS_DISMISSED":
+                guessingPlayer.value = null;
+                break;
+
+            case "GAME_ENDED":
+                resetGame();
+                router.push("/");
                 break;
 
             case "ERROR":
@@ -164,6 +181,18 @@ export const useGameStore = defineStore("game", () => {
         sendMessage("START_GAME", { names: names.value });
     }
 
+    function endGame() {
+        sendMessage("END_GAME", {});
+    }
+
+    function makeGuess() {
+        sendMessage("MAKE_GUESS", {});
+    }
+
+    function closeGuessModal() {
+        sendMessage("DISMISS_GUESS", {});
+    }
+
     function markNameAsRuledOut(nameIndex) {
         if (!ruledOut.value.has(playerId.value)) {
             ruledOut.value.set(playerId.value, new Set());
@@ -189,6 +218,8 @@ export const useGameStore = defineStore("game", () => {
         isAssigned.value = false;
         ruledOut.value = new Map();
         messages.value = [];
+        toastMessages.value = [];
+        guessingPlayer.value = null;
     }
 
     function addMessage(message) {
@@ -196,6 +227,18 @@ export const useGameStore = defineStore("game", () => {
             text: message,
             timestamp: new Date().toLocaleTimeString(),
         });
+    }
+
+    function addToast(text) {
+        const id = ++toastIdCounter;
+        toastMessages.value.unshift({ id, text });
+        if (toastMessages.value.length > 3) {
+            toastMessages.value.pop();
+        }
+        setTimeout(() => {
+            const idx = toastMessages.value.findIndex((t) => t.id === id);
+            if (idx !== -1) toastMessages.value.splice(idx, 1);
+        }, 5000);
     }
 
     return {
@@ -213,6 +256,8 @@ export const useGameStore = defineStore("game", () => {
         isAssigned,
         ruledOut,
         messages,
+        toastMessages,
+        guessingPlayer,
 
         // Methods
         connectWebSocket,
@@ -224,7 +269,11 @@ export const useGameStore = defineStore("game", () => {
         removeName,
         startGame,
         markNameAsRuledOut,
+        endGame,
+        makeGuess,
+        closeGuessModal,
         resetGame,
         addMessage,
+        addToast,
     };
 });

@@ -49,7 +49,7 @@
                     </div>
 
                     <button
-                        v-if="gameStore.isAdmin && gameStore.players.length > 1"
+                        v-if="gameStore.isAdmin && gameStore.players.length > 1 && gameStore.names.length >= 2"
                         @click="startGame"
                         class="btn btn-secondary"
                     >

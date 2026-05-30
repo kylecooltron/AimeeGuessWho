@@ -1,7 +1,7 @@
 <template>
     <div id="app" class="app">
         <header class="header">
-            <h1>Guess Who</h1>
+            <h1 class="home-link" @click="goHome">Guess Who</h1>
         </header>
         <main>
             <RouterView />
@@ -10,11 +10,17 @@
 </template>
 
 <script setup>
-import { RouterView } from "vue-router";
+import { RouterView, useRouter } from "vue-router";
 import { useGameStore } from "./stores/gameStore";
 
 const gameStore = useGameStore();
+const router = useRouter();
 gameStore.connectWebSocket();
+
+function goHome() {
+    gameStore.resetGame();
+    router.push("/");
+}
 </script>
 
 <style scoped>
@@ -34,6 +40,15 @@ gameStore.connectWebSocket();
 .header h1 {
     margin: 0;
     font-size: 2.5rem;
+}
+
+.home-link {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.home-link:hover {
+    opacity: 0.75;
 }
 
 main {
