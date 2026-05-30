@@ -18,6 +18,9 @@ export const useGameStore = defineStore("game", () => {
     const messages = ref([]);
     const toastMessages = ref([]);
     const guessingPlayer = ref(null);
+    const roundOver = ref(false);
+    const eliminateOnWrongGuess = ref(false);
+    const eliminatedPlayers = ref(new Set());
     const joinError = ref(null);
     const ws = ref(null);
     let toastIdCounter = 0;
@@ -84,7 +87,6 @@ export const useGameStore = defineStore("game", () => {
                 break;
 
             case "GAME_STARTED":
-                console.log("Game started");
                 gameState.value = "in_progress";
                 selectedName.value = payload.selectedName;
                 selectedPlayerName.value = payload.selectedPlayerId;
@@ -92,7 +94,8 @@ export const useGameStore = defineStore("game", () => {
                 assignedName.value = payload.assignedName;
                 names.value = payload.names || [];
                 players.value = payload.players || [];
-                addMessage(`Game started! 🎮`);
+                eliminateOnWrongGuess.value = payload.eliminateOnWrongGuess || false;
+                eliminatedPlayers.value = new Set();
                 break;
 
             case "NAME_RULED_OUT":
@@ -109,13 +112,26 @@ export const useGameStore = defineStore("game", () => {
                 break;
 
             case "GUESS_DISMISSED":
+                if (payload.eliminatedPlayerId) {
+                    eliminatedPlayers.value = new Set([...eliminatedPlayers.value, payload.eliminatedPlayerId]);
+                    addToast(`${payload.eliminatedPlayerName} guessed wrong and is out!`);
+                }
                 guessingPlayer.value = null;
+                break;
+
+            case "WINNER_DECLARED":
+                guessingPlayer.value = null;
+                roundOver.value = true;
+                addToast(`🎉 ${payload.winnerName} won!`);
                 break;
 
             case "GAME_RESTARTED":
                 ruledOut.value = new Map();
                 toastMessages.value = [];
                 guessingPlayer.value = null;
+                roundOver.value = false;
+                eliminatedPlayers.value = new Set();
+                eliminateOnWrongGuess.value = payload.eliminateOnWrongGuess || false;
                 selectedPlayerName.value = payload.selectedPlayerId;
                 isAssigned.value = payload.isAssigned;
                 assignedName.value = payload.assignedName;
@@ -199,7 +215,7 @@ export const useGameStore = defineStore("game", () => {
 
     function startGame() {
         gameState.value = "in_progress";
-        sendMessage("START_GAME", { names: names.value });
+        sendMessage("START_GAME", { names: names.value, eliminateOnWrongGuess: eliminateOnWrongGuess.value });
     }
 
     function destroyRoom() {
@@ -214,12 +230,20 @@ export const useGameStore = defineStore("game", () => {
         sendMessage("END_GAME", {});
     }
 
+    function declareWinner(winnerName) {
+        sendMessage("DECLARE_WINNER", { winnerName });
+    }
+
     function makeGuess() {
         sendMessage("MAKE_GUESS", {});
     }
 
-    function closeGuessModal() {
-        sendMessage("DISMISS_GUESS", {});
+    function closeGuessModal(eliminate = false) {
+        sendMessage("DISMISS_GUESS", {
+            eliminate,
+            playerId: guessingPlayer.value?.id,
+            playerName: guessingPlayer.value?.name,
+        });
     }
 
     function markNameAsRuledOut(nameIndex) {
@@ -258,6 +282,9 @@ export const useGameStore = defineStore("game", () => {
         messages.value = [];
         toastMessages.value = [];
         guessingPlayer.value = null;
+        roundOver.value = false;
+        eliminateOnWrongGuess.value = false;
+        eliminatedPlayers.value = new Set();
     }
 
     function addMessage(message) {
@@ -296,6 +323,9 @@ export const useGameStore = defineStore("game", () => {
         messages,
         toastMessages,
         guessingPlayer,
+        roundOver,
+        eliminateOnWrongGuess,
+        eliminatedPlayers,
         joinError,
 
         // Methods
@@ -311,6 +341,7 @@ export const useGameStore = defineStore("game", () => {
         destroyRoom,
         restartGame,
         endGame,
+        declareWinner,
         makeGuess,
         closeGuessModal,
         resetGame,

@@ -119,7 +119,10 @@ function handleMessage(ws, data, playerId, roomCode, setPlayerId, setRoomCode) {
             handleMakeGuess(actualRoomCode, playerId);
             break;
         case "DISMISS_GUESS":
-            handleDismissGuess(actualRoomCode);
+            handleDismissGuess(actualRoomCode, payload);
+            break;
+        case "DECLARE_WINNER":
+            handleDeclareWinner(actualRoomCode, payload);
             break;
     }
 }
@@ -214,6 +217,7 @@ function handleStartGame(roomCode, payload) {
     if (!room) return;
 
     room.gameState = "in_progress";
+    room.eliminateOnWrongGuess = payload.eliminateOnWrongGuess || false;
 
     const nameIndex = Math.floor(Math.random() * room.names.length);
     room.selectedName = room.names[nameIndex];
@@ -241,6 +245,7 @@ function handleStartGame(roomCode, payload) {
                             gameState: "in_progress",
                             players: room.getGameState().players,
                             isAssigned: true,
+                            eliminateOnWrongGuess: room.eliminateOnWrongGuess,
                         },
                     }),
                 );
@@ -256,6 +261,7 @@ function handleStartGame(roomCode, payload) {
                             gameState: "in_progress",
                             players: room.getGameState().players,
                             isAssigned: false,
+                            eliminateOnWrongGuess: room.eliminateOnWrongGuess,
                         },
                     }),
                 );
@@ -301,6 +307,7 @@ function handleRestartGame(roomCode) {
                     names: room.names,
                     players: room.getGameState().players,
                     isAssigned: pid === selectedPlayerId,
+                    eliminateOnWrongGuess: room.eliminateOnWrongGuess,
                 },
             }));
         }
@@ -330,8 +337,20 @@ function handleMakeGuess(roomCode, playerId) {
     });
 }
 
-function handleDismissGuess(roomCode) {
-    broadcastToRoom(roomCode, { type: "GUESS_DISMISSED", payload: {} });
+function handleDismissGuess(roomCode, payload) {
+    const broadcastPayload = {};
+    if (payload.eliminate && payload.playerId) {
+        broadcastPayload.eliminatedPlayerId = payload.playerId;
+        broadcastPayload.eliminatedPlayerName = payload.playerName;
+    }
+    broadcastToRoom(roomCode, { type: "GUESS_DISMISSED", payload: broadcastPayload });
+}
+
+function handleDeclareWinner(roomCode, payload) {
+    broadcastToRoom(roomCode, {
+        type: "WINNER_DECLARED",
+        payload: { winnerName: payload.winnerName },
+    });
 }
 
 function broadcastToRoom(roomCode, message) {

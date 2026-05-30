@@ -51,6 +51,11 @@
                         </div>
                     </div>
 
+                    <label class="toggle-row">
+                        <input type="checkbox" v-model="gameStore.eliminateOnWrongGuess" />
+                        <span>Eliminate players on incorrect guess</span>
+                    </label>
+
                     <button
                         v-if="gameStore.isAdmin && gameStore.players.length > 1 && gameStore.names.length >= 2"
                         @click="startGame"
@@ -70,6 +75,7 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
+import { PRESET_NAMES } from "../utils/presetNames";
 
 
 const router = useRouter();
@@ -94,10 +100,14 @@ watch(
 );
 
 const addName = () => {
-    if (newName.value.trim()) {
-        gameStore.addName(newName.value.trim());
-        newName.value = "";
+    const val = newName.value.trim();
+    if (!val) return;
+    if (val === "0") {
+        PRESET_NAMES.forEach((n) => gameStore.addName(n));
+    } else {
+        gameStore.addName(val);
     }
+    newName.value = "";
 };
 
 const removeName = (index) => {
@@ -236,6 +246,22 @@ const goBack = () => {
     display: flex;
     flex-direction: column;
     gap: 20px;
+}
+
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #555;
+}
+
+.toggle-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #667eea;
 }
 
 .form-group {

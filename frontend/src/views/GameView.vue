@@ -14,8 +14,19 @@
             <div class="guess-modal">
                 <div class="guess-icon">🔔</div>
                 <h2>{{ gameStore.guessingPlayer.name }} is making a guess!</h2>
+                <div v-if="gameStore.isAssigned" class="winner-section">
+                    <p class="winner-prompt">Did they guess correctly?</p>
+                    <div class="winner-buttons">
+                        <button @click="gameStore.declareWinner(gameStore.guessingPlayer.name)" class="btn-winner">
+                            🎉 {{ gameStore.guessingPlayer.name }} Wins!
+                        </button>
+                        <button @click="gameStore.closeGuessModal(gameStore.eliminateOnWrongGuess)" class="btn-incorrect">
+                            ❌ Incorrect
+                        </button>
+                    </div>
+                </div>
                 <button
-                    v-if="gameStore.guessingPlayer.id === gameStore.playerId"
+                    v-else-if="gameStore.guessingPlayer.id === gameStore.playerId"
                     @click="gameStore.closeGuessModal()"
                     class="btn-dismiss"
                 >
@@ -49,8 +60,8 @@
                         v-for="(name, index) in gameStore.names"
                         :key="index"
                         class="name-card"
-                        :class="{ eliminated: isNameRuledOut(index) }"
-                        @click="eliminateName(index)"
+                        :class="{ eliminated: isNameRuledOut(index), locked: isLocked }"
+                        @click="!isLocked && eliminateName(index)"
                     >
                         <div class="card-image-wrap">
                             <img :src="imgSrc(name)" :alt="name" class="card-img" @error="imgError(name)" />
@@ -60,7 +71,12 @@
                     </div>
                 </div>
 
-                <button class="guess-btn" @click="gameStore.makeGuess()">GUESS</button>
+                <button
+                    class="guess-btn"
+                    :class="{ disabled: gameStore.roundOver || gameStore.eliminatedPlayers.has(gameStore.playerId) }"
+                    :disabled="gameStore.roundOver || gameStore.eliminatedPlayers.has(gameStore.playerId)"
+                    @click="gameStore.makeGuess()"
+                >{{ gameStore.eliminatedPlayers.has(gameStore.playerId) ? 'ELIMINATED' : 'GUESS' }}</button>
             </div>
         </div>
 
@@ -68,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch, computed } from "vue";
 import { useGameStore } from "../stores/gameStore";
 import { localUrlsForName, catFallback } from "../utils/nameImages";
 
@@ -88,6 +104,38 @@ function imgError(name) {
     const attempts = imgAttempts.value[name] || 0;
     imgAttempts.value[name] = attempts + 1;
 }
+
+function launchConfetti() {
+    const colors = ["#667eea", "#764ba2", "#e74c3c", "#f39c12", "#2ecc71", "#fff", "#f1c40f"];
+    const el = document.createElement("div");
+    el.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden";
+    document.body.appendChild(el);
+    for (let i = 0; i < 180; i++) {
+        const p = document.createElement("div");
+        const size = Math.random() * 10 + 5;
+        const delay = Math.random() * 0.8;
+        const duration = 1.8 + Math.random() * 1.5;
+        p.style.cssText = `
+            position:absolute;
+            width:${size}px;height:${size}px;
+            background:${colors[Math.floor(Math.random() * colors.length)]};
+            left:${Math.random() * 100}%;top:-20px;
+            border-radius:${Math.random() > 0.5 ? "50%" : "2px"};
+            animation:confetti-fall ${duration}s ease-in ${delay}s forwards;
+            transform:rotate(${Math.random() * 360}deg);
+        `;
+        el.appendChild(p);
+    }
+    setTimeout(() => el.remove(), 4000);
+}
+
+watch(() => gameStore.roundOver, (val) => {
+    if (val) launchConfetti();
+});
+
+const isLocked = computed(() =>
+    gameStore.roundOver || gameStore.eliminatedPlayers.has(gameStore.playerId)
+);
 
 const isNameRuledOut = (nameIndex) => {
     return gameStore.ruledOut.has(gameStore.playerId) && gameStore.ruledOut.get(gameStore.playerId).has(nameIndex);
@@ -173,8 +221,60 @@ const eliminateName = (nameIndex) => {
 .guess-modal h2 {
     color: #333;
     font-size: 1.5rem;
-    margin: 0 0 30px 0;
+    margin: 0 0 20px 0;
     line-height: 1.4;
+}
+
+.winner-section {
+    margin-bottom: 16px;
+}
+
+.winner-prompt {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0 0 10px 0;
+}
+
+.btn-winner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 28px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.5);
+}
+
+.btn-winner:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.7);
+}
+
+.winner-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-incorrect {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 28px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-incorrect:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
 }
 
 .btn-dismiss {
@@ -310,7 +410,12 @@ const eliminateName = (nameIndex) => {
     flex-direction: column;
 }
 
-.name-card:hover:not(.eliminated) {
+.name-card.locked {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.name-card:hover:not(.eliminated):not(.locked) {
     transform: translateY(-4px);
     box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
@@ -385,4 +490,20 @@ const eliminateName = (nameIndex) => {
     transform: translateY(0);
 }
 
+.guess-btn.disabled {
+    background: #aaa;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.6;
+}
+
+
+</style>
+
+<style>
+@keyframes confetti-fall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
 </style>
