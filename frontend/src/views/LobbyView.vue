@@ -3,7 +3,10 @@
         <div class="lobby-card">
             <div class="room-info">
                 <h2>Room Code</h2>
-                <div class="code-display">{{ gameStore.roomCode }}</div>
+                <div class="code-display" @click="copyCode" :title="copied ? 'Copied!' : 'Click to copy'">
+                    {{ gameStore.roomCode }}
+                    <span class="copy-hint">{{ copied ? '✓ Copied!' : 'tap to copy' }}</span>
+                </div>
             </div>
 
             <div class="players-section">
@@ -68,9 +71,17 @@ import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
 
+
 const router = useRouter();
 const gameStore = useGameStore();
 const newName = ref("");
+const copied = ref(false);
+
+const copyCode = () => {
+    navigator.clipboard.writeText(gameStore.roomCode);
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 2000);
+};
 
 // Auto-navigate to game when it starts
 watch(
@@ -150,6 +161,25 @@ const goBack = () => {
     color: #667eea;
     font-family: "Courier New", monospace;
     letter-spacing: 8px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 0.2s;
+}
+
+.code-display:hover {
+    opacity: 0.75;
+}
+
+.copy-hint {
+    font-size: 0.75rem;
+    font-family: Arial, sans-serif;
+    letter-spacing: 1px;
+    color: #999;
+    font-weight: 400;
 }
 
 .players-section {

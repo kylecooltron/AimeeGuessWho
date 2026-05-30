@@ -292,8 +292,8 @@ const eliminateName = (nameIndex) => {
 
 .names-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
     width: 100%;
 }
 
