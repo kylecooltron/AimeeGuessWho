@@ -66,6 +66,8 @@
                 </div>
             </div>
 
+            <GameRules />
+
             <button @click="goBack" class="btn btn-outline">Back to Start</button>
         </div>
     </div>
@@ -75,7 +77,8 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
-import { PRESET_NAMES } from "../utils/presetNames";
+import { PRESET_NAMES_AND_DESCRIPTIONS } from "../utils/presetNames";
+import GameRules from "../components/GameRules.vue";
 
 
 const router = useRouter();
@@ -103,7 +106,7 @@ const addName = () => {
     const val = newName.value.trim();
     if (!val) return;
     if (val === "0") {
-        PRESET_NAMES.forEach((n) => gameStore.addName(n));
+        Object.keys(PRESET_NAMES_AND_DESCRIPTIONS).forEach((n) => gameStore.addName(n));
     } else {
         gameStore.addName(val);
     }
@@ -387,4 +390,5 @@ const goBack = () => {
 .btn-outline:hover {
     background: #f9f7ff;
 }
+
 </style>

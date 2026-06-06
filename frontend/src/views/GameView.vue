@@ -51,6 +51,7 @@
                     {{ gameStore.assignedName }}
                 </div>
                 <p class="assigned-hint">Other players are trying to figure out who you are. Don't give it away!</p>
+                <GameRules />
             </div>
 
             <div v-else class="names-section">
@@ -67,6 +68,7 @@
                             <img :src="imgSrc(name)" :alt="name" class="card-img" @error="imgError(name)" />
                         </div>
                         <div class="name-text">{{ name }}</div>
+                        <p v-if="descriptionFor(name)" class="card-description">{{ descriptionFor(name) }}</p>
                         <div v-if="isNameRuledOut(index)" class="eliminated-overlay">✕</div>
                     </div>
                 </div>
@@ -77,6 +79,8 @@
                     :disabled="gameStore.roundOver || gameStore.eliminatedPlayers.has(gameStore.playerId)"
                     @click="gameStore.makeGuess()"
                 >{{ gameStore.eliminatedPlayers.has(gameStore.playerId) ? 'ELIMINATED' : 'GUESS' }}</button>
+
+                <GameRules />
             </div>
         </div>
 
@@ -86,23 +90,25 @@
 <script setup>
 import { ref, watch, computed } from "vue";
 import { useGameStore } from "../stores/gameStore";
-import { localUrlsForName, catFallback } from "../utils/nameImages";
+import { localUrlForName, defaultImageUrl } from "../utils/nameImages";
+import { PRESET_NAMES_AND_DESCRIPTIONS } from "../utils/presetNames";
+import GameRules from "../components/GameRules.vue";
 
 const gameStore = useGameStore();
 
-// Tracks how many local URL attempts have failed per name
-const imgAttempts = ref({});
+const imgFailed = ref({});
 
 function imgSrc(name) {
-    const attempts = imgAttempts.value[name] || 0;
-    const locals = localUrlsForName(name);
-    if (attempts < locals.length) return locals[attempts];
-    return catFallback(name);
+    if (imgFailed.value[name]) return defaultImageUrl();
+    return localUrlForName(name);
 }
 
 function imgError(name) {
-    const attempts = imgAttempts.value[name] || 0;
-    imgAttempts.value[name] = attempts + 1;
+    imgFailed.value[name] = true;
+}
+
+function descriptionFor(name) {
+    return PRESET_NAMES_AND_DESCRIPTIONS[name] || "";
 }
 
 function launchConfetti() {
@@ -392,7 +398,7 @@ const eliminateName = (nameIndex) => {
 
 .names-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 12px;
     width: 100%;
 }
@@ -453,6 +459,21 @@ const eliminateName = (nameIndex) => {
 .name-card.eliminated .name-text {
     text-decoration: line-through;
     background: #bbb;
+}
+
+.card-description {
+    padding: 6px 8px;
+    font-size: 0.82rem;
+    color: #555;
+    line-height: 1.4;
+    margin: 0;
+    text-align: left;
+    max-height: 230px;
+    overflow-y: auto;
+}
+
+.name-card.eliminated .card-description {
+    opacity: 0.4;
 }
 
 .eliminated-overlay {

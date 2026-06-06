@@ -1,8 +1,10 @@
 <template>
     <div class="start-container">
         <div class="start-card">
-            <h2>Welcome to Guess Who!</h2>
-            <p class="subtitle">Select an option below to get started</p>
+            <h2>Welcome</h2>
+
+
+            <GameRules />
 
             <div class="button-group">
                 <button class="btn btn-primary" @click="showJoinForm = true">
@@ -78,6 +80,7 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
+import GameRules from "../components/GameRules.vue";
 
 const router = useRouter();
 const gameStore = useGameStore();
@@ -137,6 +140,13 @@ const handleHost = () => {
     color: #333;
     font-size: 2rem;
     margin-bottom: 10px;
+}
+
+.rainbow {
+    background: linear-gradient(90deg, #ff0000, #ff7700, #ffee00, #00cc00, #0088ff, #8800ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .subtitle {

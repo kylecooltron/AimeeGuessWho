@@ -1,7 +1,7 @@
 <template>
     <div id="app" class="app">
         <header class="header">
-            <h1 class="home-link" @click="goHome">Guess Who</h1>
+            <h1 class="home-link" @click="goHome"><span class="rainbow">Aimee's</span> Guess Who</h1>
         </header>
         <main>
             <RouterView />
@@ -49,6 +49,13 @@ function goHome() {
 
 .home-link:hover {
     opacity: 0.75;
+}
+
+.rainbow {
+    background: linear-gradient(90deg, #ff0000, #ff7700, #ffee00, #00cc00, #0088ff, #8800ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 main {
